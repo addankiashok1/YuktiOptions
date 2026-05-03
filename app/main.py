@@ -14,20 +14,17 @@ app = FastAPI(
     redoc_url=None if _is_production else "/redoc",
 )
 
-# ── middleware ────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── routers ───────────────────────────────────────────────────────────────────
 app.include_router(api_v1_router, prefix="/api/v1")
 
 
-# ── health check ──────────────────────────────────────────────────────────────
 @app.get("/health", tags=["health"])
 async def health():
     return {"status": "ok", "service": "yuktioptions"}

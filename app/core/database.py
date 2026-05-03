@@ -1,18 +1,14 @@
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
+from app.models.base import Base  # noqa: F401 — re-exported for convenience
 
 engine = create_async_engine(
     settings.database_url,
     echo=False,
-    pool_pre_ping=True,  # drops and replaces stale connections automatically
+    pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
 )
@@ -20,14 +16,14 @@ engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,  # prevents lazy-load errors after commit in async context
+    expire_on_commit=False,
 )
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
