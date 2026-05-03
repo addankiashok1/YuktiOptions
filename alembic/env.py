@@ -24,12 +24,10 @@ if not _url:
 config.set_main_option("sqlalchemy.url", _url)
 
 # ── target metadata ───────────────────────────────────────────────────────────
-# When models exist, replace None with your Base.metadata, e.g.:
-#
-#   from app.models import Base
-#   target_metadata = Base.metadata
-#
-target_metadata = None
+from app.core.database import Base
+import app.models  # noqa: F401 — registers all models on Base.metadata
+
+target_metadata = Base.metadata
 
 
 # ── offline mode — generates SQL without a live connection ────────────────────
