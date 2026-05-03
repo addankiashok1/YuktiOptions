@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,6 +12,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # App
+    app_name: str = "YuktiOptions"
+    env: Literal["development", "production"] = "development"
+
     # Database
     database_url: str
 
@@ -18,7 +23,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
 
     # Auth
-    jwt_secret_key: str
+    jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
