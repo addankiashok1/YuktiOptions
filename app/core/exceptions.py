@@ -16,3 +16,11 @@ class WalletNotFoundError(Exception):
 
 class InsufficientBalanceError(Exception):
     pass
+
+
+class InsufficientPositionError(Exception):
+    pass
+
+
+class PriceUnavailableError(Exception):
+    pass
