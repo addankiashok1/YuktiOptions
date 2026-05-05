@@ -1,8 +1,8 @@
-"""postion ednpoint added
+"""add stop_loss fixes
 
-Revision ID: 81961d457f1c
-Revises: fa4321279dbc
-Create Date: 2026-05-05 11:33:19.806461
+Revision ID: 5587bb6b8f69
+Revises: 8d3197266aa9
+Create Date: 2026-05-05 17:43:17.185877
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '81961d457f1c'
-down_revision: Union[str, None] = 'fa4321279dbc'
+revision: str = '5587bb6b8f69'
+down_revision: Union[str, None] = '8d3197266aa9'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

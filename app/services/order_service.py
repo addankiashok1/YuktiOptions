@@ -12,7 +12,7 @@ from app.core.exceptions import (
     WalletNotFoundError,
 )
 from app.core.redis import get_redis
-from app.models.order import Order, OrderSide, OrderStatus
+from app.models.order import Order, OrderSide, OrderStatus, OrderType
 from app.models.position import Position
 from app.models.wallet import Wallet
 from app.models.wallet_transaction import TransactionType, WalletTransaction
@@ -26,22 +26,32 @@ class OrderService:
 
     # ── public entry point ────────────────────────────────────────────────────
 
-    async def execute_order(
+    async def place_order(
         self,
         user_id: uuid.UUID,
         symbol: str,
         side: str,
         quantity: int,
+        order_type: str = "market",
+        limit_price: Decimal | None = None,
+        trigger_price: Decimal | None = None,
     ) -> Order:
-        price = await self._get_price(symbol)
-        order_value = (price * Decimal(quantity)).quantize(_SCALE)
         order_side = OrderSide(side)
+        otype = OrderType(order_type)
 
-        if order_side == OrderSide.BUY:
-            return await self._buy(user_id, symbol, quantity, price, order_value)
-        return await self._sell(user_id, symbol, quantity, price, order_value)
+        if otype == OrderType.MARKET:
+            price = await self._get_price(symbol)
+            order_value = (price * Decimal(quantity)).quantize(_SCALE)
+            if order_side == OrderSide.BUY:
+                return await self._buy(user_id, symbol, quantity, price, order_value)
+            return await self._sell(user_id, symbol, quantity, price, order_value)
 
-    # ── buy ───────────────────────────────────────────────────────────────────
+        # LIMIT or STOP_LIMIT — place as pending, no immediate execution
+        return await self._place_pending(
+            user_id, symbol, order_side, otype, quantity, limit_price, trigger_price
+        )
+
+    # ── market buy ────────────────────────────────────────────────────────────
 
     async def _buy(
         self,
@@ -50,28 +60,23 @@ class OrderService:
         quantity: int,
         price: Decimal,
         order_value: Decimal,
+        order_id: uuid.UUID | None = None,
+        order_type: OrderType = OrderType.MARKET,
     ) -> Order:
-        # Lock order: wallet → position  (consistent across buy+sell → no deadlock)
         wallet = await self._lock_wallet(user_id)
-
         if wallet.balance < order_value:
             raise InsufficientBalanceError(
                 f"Insufficient balance. Required ₹{order_value}, available ₹{wallet.balance}."
             )
-
         position = await self._lock_or_init_position(user_id, symbol)
-
-        # Deduct wallet
         wallet.balance = (wallet.balance - order_value).quantize(_SCALE)
-
-        # Weighted average price: preserves cost basis across multiple buys
         new_qty = position.quantity + quantity
         position.avg_price = (
             (position.avg_price * position.quantity + price * quantity) / new_qty
         ).quantize(_SCALE)
         position.quantity = new_qty
 
-        order_id = uuid.uuid4()
+        oid = order_id or uuid.uuid4()
         self.db.add(
             WalletTransaction(
                 user_id=user_id,
@@ -79,27 +84,27 @@ class OrderService:
                 type=TransactionType.DEBIT,
                 amount=order_value,
                 balance_after=wallet.balance,
-                reference_id=str(order_id),
+                reference_id=str(oid),
             )
         )
         order = Order(
-            id=order_id,
+            id=oid,
             user_id=user_id,
             symbol=symbol,
             side=OrderSide.BUY,
+            order_type=order_type,
             quantity=quantity,
             price=price,
             order_value=order_value,
             status=OrderStatus.EXECUTED,
         )
         self.db.add(order)
-
         await self.db.flush()
         await self.db.commit()
         await self.db.refresh(order)
         return order
 
-    # ── sell ──────────────────────────────────────────────────────────────────
+    # ── market sell ───────────────────────────────────────────────────────────
 
     async def _sell(
         self,
@@ -108,24 +113,20 @@ class OrderService:
         quantity: int,
         price: Decimal,
         order_value: Decimal,
+        order_id: uuid.UUID | None = None,
+        order_type: OrderType = OrderType.MARKET,
     ) -> Order:
-        # Lock order: wallet → position  (same ordering as buy → no deadlock)
         wallet = await self._lock_wallet(user_id)
         position = await self._lock_position(user_id, symbol)
-
         held = position.quantity if position else 0
         if held < quantity:
             raise InsufficientPositionError(
                 f"Insufficient position in {symbol}. Held: {held}, requested: {quantity}."
             )
-
-        # Reduce position (avg_price unchanged on partial sell — cost basis stays)
         position.quantity -= quantity
-
-        # Credit wallet
         wallet.balance = (wallet.balance + order_value).quantize(_SCALE)
 
-        order_id = uuid.uuid4()
+        oid = order_id or uuid.uuid4()
         self.db.add(
             WalletTransaction(
                 user_id=user_id,
@@ -133,21 +134,49 @@ class OrderService:
                 type=TransactionType.CREDIT,
                 amount=order_value,
                 balance_after=wallet.balance,
-                reference_id=str(order_id),
+                reference_id=str(oid),
             )
         )
         order = Order(
-            id=order_id,
+            id=oid,
             user_id=user_id,
             symbol=symbol,
             side=OrderSide.SELL,
+            order_type=order_type,
             quantity=quantity,
             price=price,
             order_value=order_value,
             status=OrderStatus.EXECUTED,
         )
         self.db.add(order)
+        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(order)
+        return order
 
+    # ── pending order placement (limit / stop_limit) ──────────────────────────
+
+    async def _place_pending(
+        self,
+        user_id: uuid.UUID,
+        symbol: str,
+        side: OrderSide,
+        order_type: OrderType,
+        quantity: int,
+        limit_price: Decimal | None,
+        trigger_price: Decimal | None,
+    ) -> Order:
+        order = Order(
+            user_id=user_id,
+            symbol=symbol,
+            side=side,
+            order_type=order_type,
+            quantity=quantity,
+            limit_price=limit_price,
+            trigger_price=trigger_price,
+            status=OrderStatus.PENDING,
+        )
+        self.db.add(order)
         await self.db.flush()
         await self.db.commit()
         await self.db.refresh(order)
@@ -192,9 +221,6 @@ class OrderService:
     async def _lock_or_init_position(self, user_id: uuid.UUID, symbol: str) -> Position:
         position = await self._lock_position(user_id, symbol)
         if position is None:
-            # First buy for this symbol — create a zero-quantity placeholder.
-            # The wallet lock already serializes concurrent buys from the same
-            # user, so no two transactions can reach this branch simultaneously.
             position = Position(
                 user_id=user_id,
                 symbol=symbol,
@@ -202,5 +228,5 @@ class OrderService:
                 avg_price=Decimal("0"),
             )
             self.db.add(position)
-            await self.db.flush()  # generate PK before referencing in buy logic
+            await self.db.flush()
         return position

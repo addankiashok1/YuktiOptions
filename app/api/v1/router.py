@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, market, orders, wallet, positions, emotion, ws, portfolio
+from app.api.v1.endpoints import auth, market, orders, wallet, positions, emotion, ws, portfolio, orderbook
 
 router = APIRouter()
 
@@ -12,3 +12,4 @@ router.include_router(positions.router, prefix="/positions", tags=["positions"])
 router.include_router(emotion.router, prefix="/emotion", tags=["emotion"])
 router.include_router(ws.router, prefix="/ws", tags=["websocket"])
 router.include_router(portfolio.router, prefix="/portfolio", tags=["portfolio"])
+router.include_router(orderbook.router, prefix="/orderbook", tags=["orderbook"])

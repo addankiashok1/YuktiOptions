@@ -6,15 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import router as api_v1_router
 from app.core.config import settings
 from app.core.redis import close_redis
+from app.services.matching_engine import matching_engine
 from app.services.stoploss_service import stoploss_engine
 
 _is_production = settings.env == "production"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     stoploss_engine.start()
+    matching_engine.start()
     yield
+    matching_engine.stop()
     stoploss_engine.stop()
     await close_redis()
 

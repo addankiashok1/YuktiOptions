@@ -23,11 +23,14 @@ async def place_order(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        order = await OrderService(db).execute_order(
+        order = await OrderService(db).place_order(
             user_id=current_user.id,
             symbol=payload.symbol,
             side=payload.side,
             quantity=payload.quantity,
+            order_type=payload.order_type,
+            limit_price=payload.limit_price,
+            trigger_price=payload.trigger_price,
         )
     except PriceUnavailableError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))

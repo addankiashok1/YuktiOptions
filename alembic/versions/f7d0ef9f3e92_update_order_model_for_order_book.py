@@ -1,8 +1,8 @@
-"""marke simulation
+"""update order model for order book
 
-Revision ID: 4dec04fdc2f6
-Revises: bad7f5c3cdc6
-Create Date: 2026-05-05 10:51:20.930972
+Revision ID: f7d0ef9f3e92
+Revises: 965cf85f5ddb
+Create Date: 2026-05-05 18:13:34.659544
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4dec04fdc2f6'
-down_revision: Union[str, None] = 'bad7f5c3cdc6'
+revision: str = 'f7d0ef9f3e92'
+down_revision: Union[str, None] = '965cf85f5ddb'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

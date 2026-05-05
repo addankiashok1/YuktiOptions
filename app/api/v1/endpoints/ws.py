@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.core.redis import get_redis
 from app.models.position import Position
+from app.services.order_matching_service import process_price_update
 from app.utils.security import decode_token
 
 router = APIRouter()
@@ -64,6 +65,13 @@ class ConnectionManager:
                 except (json.JSONDecodeError, TypeError):
                     continue
                 await self._broadcast(data)
+                # Drive order matching on every live price tick
+                try:
+                    symbol = data["symbol"]
+                    price = Decimal(str(data["price"])).quantize(Decimal("0.01"))
+                    await process_price_update(symbol, price)
+                except Exception:
+                    pass
         except asyncio.CancelledError:
             pass
         except Exception:

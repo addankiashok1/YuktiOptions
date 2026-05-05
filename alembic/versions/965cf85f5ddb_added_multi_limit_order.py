@@ -1,8 +1,8 @@
-"""add stop loss fields
+"""added multi limit order 
 
-Revision ID: e510c7875ec2
-Revises: 5aaac3489350
-Create Date: 2026-05-05 13:10:25.131144
+Revision ID: 965cf85f5ddb
+Revises: 5587bb6b8f69
+Create Date: 2026-05-05 18:05:11.332127
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e510c7875ec2'
-down_revision: Union[str, None] = '5aaac3489350'
+revision: str = '965cf85f5ddb'
+down_revision: Union[str, None] = '5587bb6b8f69'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
