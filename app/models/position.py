@@ -24,6 +24,8 @@ class Position(Base):
     symbol: Mapped[str] = mapped_column(String(20), index=True)
     quantity: Mapped[int] = mapped_column(Integer)
     avg_price: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    stop_loss: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    target_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
